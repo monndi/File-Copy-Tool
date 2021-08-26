@@ -2,6 +2,7 @@
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 
 namespace File_Copy_Tool
 {
@@ -10,7 +11,18 @@ namespace File_Copy_Tool
         private string _sourcePath;
         private string _destinationPath;
 
+        private FileStream _sourceStream;
+        private FileStream _destinationStream;
+        private long _totalBytesTransferred = 0;
+
+
         private readonly int _blockLen;
+
+        public static Semaphore lockSourceStream = new Semaphore(1, 1);
+
+        public static Semaphore lockDestStream = new Semaphore(1, 1);
+
+        public static Semaphore lockTotalBytesTransferred = new Semaphore(1, 1);
 
         /// <summary>
         /// Provide file transfer tool to securely copy a large file from source file location path to destination file location path using block of bytes for transferring.
@@ -43,69 +55,76 @@ namespace File_Copy_Tool
             }
             _sourcePath = sourcePath;
             _destinationPath = destinationPath;
+
+            _sourceStream = File.Open(_sourcePath, FileMode.Open);
+            _destinationStream = File.Create(_destinationPath);
         }
 
-        /// <summary>
-        /// Copy file securely using MD5.
-        /// </summary>
-        public void CopyFile()
+        private void CopyAndVerifyBytes()
         {
             long position = 0;
-            long totalBytesTransferred = 0;
             byte[] blockBuffer = new byte[_blockLen];
             int bytesLoad = 0;
-            using (FileStream _sourceStream = File.Open(_sourcePath, FileMode.Open))
+            
+            while (true)
             {
-                using (FileStream _destinationStream = File.Create(_destinationPath))
+                Array.Clear(blockBuffer, 0, _blockLen);
+                lockSourceStream.WaitOne();
+                position = _sourceStream.Position;
+                bytesLoad = _sourceStream.Read(blockBuffer, 0, _blockLen);
+                lockSourceStream.Release();
+
+                if (bytesLoad == 0) return;
+
+                lockDestStream.WaitOne();
+                    _destinationStream.Seek(position, SeekOrigin.Begin);
+                    _destinationStream.Write(blockBuffer, 0, bytesLoad);
+                    _destinationStream.Flush();
+                lockDestStream.Release();
+
+                byte[] destinationBlockBuffer = new byte[_blockLen];
+
+                lockDestStream.WaitOne();
+                    _destinationStream.Seek(position, SeekOrigin.Begin);
+                    _destinationStream.Read(destinationBlockBuffer, 0, _blockLen);
+                lockDestStream.Release();
+
+                if (FileCopyToolUtils.CompareMD5Hash(blockBuffer.Take(bytesLoad).ToArray(), destinationBlockBuffer.Take(bytesLoad).ToArray()))
                 {
-                    while (true)
-                    {
-                        Array.Clear(blockBuffer, 0, _blockLen);
+                    Console.WriteLine("Block succesfully copied!");
 
-                        position = _sourceStream.Position;
-                        bytesLoad = _sourceStream.Read(blockBuffer, 0, _blockLen);
+                    lockTotalBytesTransferred.WaitOne();
+                    _totalBytesTransferred += bytesLoad;
+                    lockTotalBytesTransferred.Release();
+                    if (bytesLoad < _blockLen) break;
+                }
+                else
+                {
+                    Console.WriteLine("Block re-submitted!");
 
-                        if (bytesLoad == 0) break;
-                       
-                        _destinationStream.Write(blockBuffer, 0, bytesLoad);
-                        _destinationStream.Flush();
-
-                        if (VerifyTransferredBytes(_sourceStream, _destinationStream, position))
-                        {
-                            Console.WriteLine("Block succesfully copied!");
-                            totalBytesTransferred += bytesLoad;
-                            if (bytesLoad < _blockLen)
-                            {
-                                _destinationStream.SetLength(totalBytesTransferred);
-                                break;
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine("Block re-submitted!");
-                            _sourceStream.Seek(position, SeekOrigin.Begin);
-                            _destinationStream.Seek(position, SeekOrigin.Begin);
-                        }
-                    }
+                    lockSourceStream.WaitOne();
+                    _sourceStream.Seek(position, SeekOrigin.Begin);
+                    lockSourceStream.Release();
                 }
             }
         }
 
-        // Check if the block of bytes is properly transferred using MD5 Hash.
-        private bool VerifyTransferredBytes(FileStream sourceStream, FileStream destinationStream, long position)
+      
+        public void CopyFile()
         {
-            byte[] sourceBlockBuffer = new byte[_blockLen];
-            byte[] destinationBlockBuffer = new byte[_blockLen];
+            Thread threadOne = new Thread(CopyAndVerifyBytes);
+            Thread threadTwo = new Thread(CopyAndVerifyBytes);
 
-            sourceStream.Seek(position, SeekOrigin.Begin);
-            int bytesLoad = sourceStream.Read(sourceBlockBuffer, 0, _blockLen);
+            threadOne.Start();
+            threadTwo.Start();
 
-            destinationStream.Seek(position, SeekOrigin.Begin);
-            destinationStream.Read(destinationBlockBuffer, 0, _blockLen);
+            threadOne.Join();
+            threadTwo.Join();
 
-            if (FileCopyToolUtils.CompareMD5Hash(sourceBlockBuffer.Take(bytesLoad).ToArray(), destinationBlockBuffer.Take(bytesLoad).ToArray())) return true;
-            else return false;
+            _destinationStream.SetLength(_totalBytesTransferred);
+            CopyingFinished();
         }
+
         /// <summary>
         /// Check if the file is properly copied.
         /// </summary>
@@ -175,6 +194,12 @@ namespace File_Copy_Tool
                     break;
                 }
             }
+        }
+
+        private void CopyingFinished()
+        {
+            _sourceStream.Dispose();
+            _destinationStream.Dispose();
         }
     }
 }
