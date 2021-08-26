@@ -1,0 +1,14 @@
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\bin\Debug\netcoreapp3.1\File Copy Tool.exe
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\bin\Debug\netcoreapp3.1\File Copy Tool.deps.json
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\bin\Debug\netcoreapp3.1\File Copy Tool.runtimeconfig.json
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\bin\Debug\netcoreapp3.1\File Copy Tool.runtimeconfig.dev.json
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\bin\Debug\netcoreapp3.1\File Copy Tool.dll
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\bin\Debug\netcoreapp3.1\File Copy Tool.pdb
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\obj\Debug\netcoreapp3.1\File Copy Tool.csproj.AssemblyReference.cache
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\obj\Debug\netcoreapp3.1\File Copy Tool.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\obj\Debug\netcoreapp3.1\File Copy Tool.AssemblyInfoInputs.cache
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\obj\Debug\netcoreapp3.1\File Copy Tool.AssemblyInfo.cs
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\obj\Debug\netcoreapp3.1\File Copy Tool.csproj.CoreCompileInputs.cache
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\obj\Debug\netcoreapp3.1\File Copy Tool.dll
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\obj\Debug\netcoreapp3.1\File Copy Tool.pdb
+C:\Users\Monika Dimitrova\Desktop\newFolder\File Copy Tool\File Copy Tool\obj\Debug\netcoreapp3.1\File Copy Tool.genruntimeconfig.cache
