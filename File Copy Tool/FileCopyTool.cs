@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -15,14 +16,18 @@ namespace File_Copy_Tool
         private FileStream _destinationStream;
         private long _totalBytesTransferred = 0;
 
+        private HashSet<long>  TransferredBlockSet= new HashSet<long>();
 
         private readonly int _blockLen;
 
-        public static Semaphore lockSourceStream = new Semaphore(1, 1);
+        public static Semaphore LockSourceStream = new Semaphore(1, 2);
 
-        public static Semaphore lockDestStream = new Semaphore(1, 1);
+        public static Semaphore LockTransferredBlockSet = new Semaphore(1, 2);
 
-        public static Semaphore lockTotalBytesTransferred = new Semaphore(1, 1);
+        public static Semaphore LockDestStream = new Semaphore(1, 2);
+
+        public static Semaphore LockTotalBytesTransferred = new Semaphore(1, 2);
+
 
         /// <summary>
         /// Provide file transfer tool to securely copy a large file from source file location path to destination file location path using block of bytes for transferring.
@@ -65,46 +70,59 @@ namespace File_Copy_Tool
             long position = 0;
             byte[] blockBuffer = new byte[_blockLen];
             int bytesLoad = 0;
-            
-            while (true)
-            {
-                Array.Clear(blockBuffer, 0, _blockLen);
-                lockSourceStream.WaitOne();
+            LockSourceStream.WaitOne();
                 position = _sourceStream.Position;
                 bytesLoad = _sourceStream.Read(blockBuffer, 0, _blockLen);
-                lockSourceStream.Release();
-
+            LockSourceStream.Release();
+            while (true)
+            {
                 if (bytesLoad == 0) return;
 
-                lockDestStream.WaitOne();
+                LockDestStream.WaitOne();
                     _destinationStream.Seek(position, SeekOrigin.Begin);
                     _destinationStream.Write(blockBuffer, 0, bytesLoad);
                     _destinationStream.Flush();
-                lockDestStream.Release();
+                LockDestStream.Release();
+
 
                 byte[] destinationBlockBuffer = new byte[_blockLen];
 
-                lockDestStream.WaitOne();
+                LockDestStream.WaitOne();
                     _destinationStream.Seek(position, SeekOrigin.Begin);
                     _destinationStream.Read(destinationBlockBuffer, 0, _blockLen);
-                lockDestStream.Release();
+                LockDestStream.Release();
 
                 if (FileCopyToolUtils.CompareMD5Hash(blockBuffer.Take(bytesLoad).ToArray(), destinationBlockBuffer.Take(bytesLoad).ToArray()))
                 {
                     Console.WriteLine("Block succesfully copied!");
 
-                    lockTotalBytesTransferred.WaitOne();
+                    LockTotalBytesTransferred.WaitOne();
                     _totalBytesTransferred += bytesLoad;
-                    lockTotalBytesTransferred.Release();
+                    LockTotalBytesTransferred.Release();
+
+                    LockTransferredBlockSet.WaitOne();
+                        TransferredBlockSet.Add(position);
+                    LockTransferredBlockSet.Release();
                     if (bytesLoad < _blockLen) break;
+                    
+                    Array.Clear(blockBuffer, 0, _blockLen);
+                    LockSourceStream.WaitOne();
+                        position = _sourceStream.Position;
+                        LockTransferredBlockSet.WaitOne();
+                            if (TransferredBlockSet.Contains(position)) _sourceStream.Seek(TransferredBlockSet.Max() + _blockLen, SeekOrigin.Begin);
+                        LockTransferredBlockSet.Release();
+                        bytesLoad = _sourceStream.Read(blockBuffer, 0, _blockLen);
+                    LockSourceStream.Release();
                 }
                 else
                 {
                     Console.WriteLine("Block re-submitted!");
+                    Array.Clear(blockBuffer, 0, _blockLen);
+                    LockSourceStream.WaitOne();
+                        _sourceStream.Seek(position, SeekOrigin.Begin);
+                        bytesLoad = _sourceStream.Read(blockBuffer, 0, _blockLen);
+                    LockSourceStream.Release();
 
-                    lockSourceStream.WaitOne();
-                    _sourceStream.Seek(position, SeekOrigin.Begin);
-                    lockSourceStream.Release();
                 }
             }
         }
