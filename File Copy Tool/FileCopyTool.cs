@@ -108,9 +108,11 @@ namespace File_Copy_Tool
                     Array.Clear(blockBuffer, 0, _blockLen);
                     LockSourceStream.WaitOne();
                         position = _sourceStream.Position;
+                        
                         LockTransferredBlockSet.WaitOne();
                             if (TransferredBlockSet.Contains(position)) _sourceStream.Seek(TransferredBlockSet.Max() + _blockLen, SeekOrigin.Begin);
                         LockTransferredBlockSet.Release();
+                        
                         bytesLoad = _sourceStream.Read(blockBuffer, 0, _blockLen);
                     LockSourceStream.Release();
                 }
